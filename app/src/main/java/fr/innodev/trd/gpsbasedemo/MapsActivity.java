@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Build;
@@ -23,6 +24,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -35,15 +38,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
-    private Log log;
     private StepCounter stepCounter;
+    private LatLng lastLatLng;
+    private Circle lastCircle;
+    private int seconds = 30;
+    private MagnetDirection magnetDirection;
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        stepCounter  = new StepCounter(getApplicationContext(),sm);
-
+        stepCounter  = new StepCounter(getApplicationContext(),this, sm);
+        magnetDirection  = new MagnetDirection(getApplicationContext(),this, sm);
         while (!permissionGranted()) ;
 
         setContentView(R.layout.activity_maps);
@@ -63,7 +69,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
                             // Logic to handle location object
-                            log.v("INFO", "Location Result" + location.toString());
+                            Log.v("INFO", "Location Result" + location.toString());
                             updateMapDisplay(location);
                         }
                     }
@@ -74,15 +80,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onLocationResult(LocationResult locationResult) {
                 for (Location location : locationResult.getLocations()) {
                     // Update UI with location data
-                    log.v("INFO", "Location Callback" + location.toString());
+                    Log.v("INFO", "Location Callback" + location.toString());
                     updateMapDisplay(location);
                 }
             }
         };
 
         mLocationRequest = LocationRequest.create();
-        mLocationRequest.setInterval(20000);
-        mLocationRequest.setFastestInterval(20000);
+        mLocationRequest.setInterval(seconds*1000);
+        mLocationRequest.setFastestInterval(seconds*1000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                 mLocationCallback,
@@ -90,7 +96,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    public  double getDistanceFromLatLonInKm(LatLng latLon1,LatLng lantlon2 ) {
+        double lat1 = latLon1.latitude,lon1=latLon1.longitude,lat2 = lantlon2.latitude,lon2 = lantlon2.longitude;
+        int  R = 6371; // Radius of the earth in km
+        double dLat = deg2rad(lat2-lat1);  // deg2rad below
+        double dLon = deg2rad(lon2-lon1);
+        double a =
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                                Math.sin(dLon/2) * Math.sin(dLon/2)
+                ;
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double d = R * c; // Distance in km
+        return d;
+    }
 
+    public double deg2rad(double deg) {
+        return deg * (Math.PI/180);
+    }
+    public double distanceToLatLong(){
+        /*
+        quick and dirty estimate that 111,111 meters (111.111 km) in the y direction is 1 degree (of latitude)
+         and 111,111 * cos(latitude) meters in the x direction is 1 degree (of longitude).
+         */
+        return  0d;
+    }
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -105,13 +135,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
     }
+    public void updateCircle( float distance ){
+        if(lastCircle != null){
+            lastCircle.setRadius(distance);
+        }
+        else{
+            lastCircle = mMap.addCircle(new CircleOptions()
+                    .center(lastLatLng)
+                    .radius(distance)
+                    .strokeColor(Color.RED)
+                    .fillColor(Color.BLUE));
+        }
 
+    }
+    public void updateCircle( LatLng center,float distance ){
+        if(lastCircle != null){
+            lastCircle.setRadius(distance);
+            lastCircle.setCenter(center);
+        }
+        else{
+            lastCircle = mMap.addCircle(new CircleOptions()
+                    .center(center)
+                    .radius(distance)
+                    .strokeColor(0xaaddddff)
+                    .fillColor(0x80ddddff));
+        }
+
+    }
     private void updateMapDisplay(Location myLocation) {
         // Add a marker in Sydney and move the camera
         LatLng curPos = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
+
+        if(lastLatLng!= null){
+            Log.e("sd","km: "+getDistanceFromLatLonInKm(lastLatLng,curPos));
+        }
+
+        updateCircle(curPos,0);
+        lastLatLng = curPos;
+
+       // stepCounter.resetCounter();
         mMap.addMarker(new MarkerOptions().position(curPos).title("Position courante"));
         float zoom = mMap.getMaxZoomLevel();
-        log.d("INFO", "Zoom Max = " + zoom);
+        Log.d("INFO", "Zoom Max = " + zoom);
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(curPos, zoom - 3.0f));
     }
 
