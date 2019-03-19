@@ -2,7 +2,9 @@ package fr.innodev.trd.gpsbasedemo;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Build;
 import android.os.Handler;
@@ -34,11 +36,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
     private Log log;
-
+    private StepCounter stepCounter;
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        stepCounter  = new StepCounter(getApplicationContext(),sm);
 
         while (!permissionGranted()) ;
 
