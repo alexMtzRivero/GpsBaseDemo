@@ -60,31 +60,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint("MissingPermission")
     @Override
 
-    /*
-    Exercice 1 : GPS
-        • Récupérer les coordonnées GPS et les afficher.
-        • Utiliser les fonctionnalités des listener pour limiter l’accès au GPS toutes les
-        15 secondes et mettre à jour la position
-        Exercice 2 : Exploitation des données
-        • A l’aide des données collectées dans l’exercice 1, estimer la distance parcouru
-        entre 2 mesure du GPS.
-        • A l’aide des données des autres capteurs, donner une 2ème estimation de la
-        distance parcouru
-        Exercice 3 : Exploitation des données
-        • Étendre le travail de l’exercice 2 pour donner aussi une information de
-        direction du déplacement.
-        Exercice 4 : Coopération entre capteurs
-        • Au lieu de collecter les données GPS toutes les 15 sec, collecter les données
-        GPS toutes les 60 sec
-        • Continuer à rafraîchir les information de position toutes les 15 sec en utilisant
-        les données de l’exercice 3 pour prédire les coordonnées
-     */
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+
+        //Activation capteurs utilisées
         stepCounter  = new StepCounter(getApplicationContext(),this, sm);
         magnetDirection  = new MagnetDirection(getApplicationContext(),this, sm);
+
+
         while (!permissionGranted()) ;
 
         setContentView(R.layout.activity_maps);
@@ -131,6 +118,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    // mesure la distance entre 2 LatLong points
     public  double getDistanceFromLatLonInKm(LatLng latLon1,LatLng lantlon2 ) {
         double lat1 = latLon1.latitude,lon1=latLon1.longitude,lat2 = lantlon2.latitude,lon2 = lantlon2.longitude;
         int  R = 6371; // Radius of the earth in km
@@ -149,9 +137,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public double deg2rad(double deg) {
         return deg * (Math.PI/180);
     }
-    public double rad2deg(double rad) { return rad * (180/Math.PI);
-    }
 
+
+
+    // on recu distance et un angle et on retour  deux cordonees
     public LatLng distanceToLatLong(double angle , double distance){
         // distance is meters
         double x = distance * Math.cos(angle);
@@ -181,6 +170,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
     }
+
+    // chaque pas on increment le radyon du circle
     public void updateCircle( float distance ){
         if(lastCircle != null){
             lastCircle.setRadius(distance);
@@ -200,6 +191,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
     }
+
+
+    // chaque pas on designe la ligne du parcours fait
     public void update1step(){
 
             if(mMap!=null) {
@@ -220,6 +214,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
     }
+    // chaque segonde on montre l'orientation du device
     public void updateDirection( double direction){
 
 
@@ -240,6 +235,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         }
     }
+    // chanche le centre du circle
     public void updateCircle( LatLng center,float distance ){
         if(lastCircle != null){
             lastCircle.setRadius(distance);
@@ -254,6 +250,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
     }
+
+
+    // updates le marqueur sur la map
     private void updateMapDisplay(Location myLocation) {
         // Add a marker in Sydney and move the camera
         LatLng curPos = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
