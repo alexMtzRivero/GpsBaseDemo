@@ -12,7 +12,7 @@ import android.widget.Toast;
 
 
 public class MagnetDirection implements SensorEventListener {
-    private static final float CM_PAR_PAS = 0.6f;
+    private static final float M_PAR_PAS = 0.6f;
     SensorManager sensorManager ;
     Sensor mSensor;
     MapsActivity parentActivity;
@@ -40,8 +40,8 @@ public class MagnetDirection implements SensorEventListener {
                     SensorManager.SENSOR_DELAY_NORMAL);
         }
 
-
         handler = new Handler();
+         //each second get the magnetic orientation
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -71,6 +71,7 @@ public class MagnetDirection implements SensorEventListener {
                 accelerometerReading, magnetometerReading);
         SensorManager.getOrientation(rotationMatrix, orientationAngles);
         Log.e("values","0:"+orientationAngles[0]+" 1:"+orientationAngles[1]+"2: "+orientationAngles[2]);
+        parentActivity.updateDirection(orientationAngles[0]);
         return orientationAngles;
     }
     @Override

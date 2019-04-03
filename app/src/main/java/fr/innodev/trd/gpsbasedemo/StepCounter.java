@@ -9,7 +9,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 public class StepCounter implements SensorEventListener {
-    private static final float CM_PAR_PAS = 0.6f;
+    public static final float M_PAR_PAS = 0.6f;
     SensorManager sensorManager ;
     Sensor sSensor;
     MapsActivity parentActivity;
@@ -31,7 +31,8 @@ public class StepCounter implements SensorEventListener {
             steps++;
         }
         Toast.makeText(aplicationContext,"pasos"+steps,Toast.LENGTH_SHORT).show();
-        parentActivity.updateCircle(steps * this.CM_PAR_PAS);
+        parentActivity.updateCircle(steps * this.M_PAR_PAS);
+        parentActivity.update1step();
     }
 
     public void resetCounter(){

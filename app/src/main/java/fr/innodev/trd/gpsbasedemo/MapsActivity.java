@@ -27,9 +27,18 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+
+import java.util.ArrayList;
+
+import static java.lang.Math.PI;
+import static java.lang.Math.cos;
+
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -41,12 +50,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private StepCounter stepCounter;
     private LatLng lastLatLng;
     private Circle lastCircle;
-    private int seconds = 30;
+    private int seconds = 60;
+    ArrayList<LatLng> myWay;
+    Marker currMarquer;
+    Polyline currLine;
+    Polyline dir;
+
     private MagnetDirection magnetDirection;
     @SuppressLint("MissingPermission")
     @Override
+
+    /*
+    Exercice 1 : GPS
+        • Récupérer les coordonnées GPS et les afficher.
+        • Utiliser les fonctionnalités des listener pour limiter l’accès au GPS toutes les
+        15 secondes et mettre à jour la position
+        Exercice 2 : Exploitation des données
+        • A l’aide des données collectées dans l’exercice 1, estimer la distance parcouru
+        entre 2 mesure du GPS.
+        • A l’aide des données des autres capteurs, donner une 2ème estimation de la
+        distance parcouru
+        Exercice 3 : Exploitation des données
+        • Étendre le travail de l’exercice 2 pour donner aussi une information de
+        direction du déplacement.
+        Exercice 4 : Coopération entre capteurs
+        • Au lieu de collecter les données GPS toutes les 15 sec, collecter les données
+        GPS toutes les 60 sec
+        • Continuer à rafraîchir les information de position toutes les 15 sec en utilisant
+        les données de l’exercice 3 pour prédire les coordonnées
+     */
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         SensorManager sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         stepCounter  = new StepCounter(getApplicationContext(),this, sm);
         magnetDirection  = new MagnetDirection(getApplicationContext(),this, sm);
@@ -103,7 +138,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         double dLon = deg2rad(lon2-lon1);
         double a =
                 Math.sin(dLat/2) * Math.sin(dLat/2) +
-                        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                        cos(deg2rad(lat1)) * cos(deg2rad(lat2)) *
                                 Math.sin(dLon/2) * Math.sin(dLon/2)
                 ;
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
@@ -114,12 +149,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public double deg2rad(double deg) {
         return deg * (Math.PI/180);
     }
-    public double distanceToLatLong(){
+    public double rad2deg(double rad) { return rad * (180/Math.PI);
+    }
+
+    public LatLng distanceToLatLong(double angle , double distance){
+        // distance is meters
+        double x = distance * Math.cos(angle);
+        double y = distance * Math.sin(angle);
+
+          // convert to long
+           x /=111111 ;
+           y /=111111/*  * Math.cos(latitud) */ ;
+
         /*
         quick and dirty estimate that 111,111 meters (111.111 km) in the y direction is 1 degree (of latitude)
          and 111,111 * cos(latitude) meters in the x direction is 1 degree (of longitude).
          */
-        return  0d;
+        return  new LatLng(-y,-x);
     }
     /**
      * Manipulates the map once available.
@@ -140,13 +186,59 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             lastCircle.setRadius(distance);
         }
         else{
-            lastCircle = mMap.addCircle(new CircleOptions()
-                    .center(lastLatLng)
-                    .radius(distance)
-                    .strokeColor(Color.RED)
-                    .fillColor(Color.BLUE));
+            if(mMap!=null) {
+                lastCircle = mMap.addCircle(new CircleOptions()
+                        .center(lastLatLng)
+                        .radius(distance)
+                        .strokeColor(Color.RED)
+                        .fillColor(Color.BLUE));
+
+                float direction = magnetDirection.getOrientation()[0];
+
+
+            }
         }
 
+    }
+    public void update1step(){
+
+            if(mMap!=null) {
+
+
+                double direction = magnetDirection.getOrientation()[0];
+                LatLng newPosition = distanceToLatLong(-(direction +(PI/2)),StepCounter.M_PAR_PAS);
+                double latToadd = newPosition.latitude + myWay.get(myWay.size()-1).latitude;
+                double longToadd = newPosition.longitude + myWay.get(myWay.size()-1).longitude;
+                LatLng toAdd = new LatLng(latToadd,longToadd);
+
+                myWay.add(toAdd);
+
+                currLine.setPoints(myWay);
+
+
+            }
+
+
+    }
+    public void updateDirection( double direction){
+
+
+        if(mMap!=null) {
+
+            if(dir!=null) dir.remove();
+            dir = mMap.addPolyline(new PolylineOptions().color(0xf0ff00ff));
+
+            LatLng newPosition = distanceToLatLong(-(direction+(PI/2)),StepCounter.M_PAR_PAS * 6);
+            double latToadd = newPosition.latitude + myWay.get(0).latitude;
+            double longToadd = newPosition.longitude + myWay.get(0).longitude;
+
+            ArrayList<LatLng> temp = new ArrayList<>();
+             temp.add(myWay.get(0));
+             temp.add(new LatLng(latToadd,longToadd));
+
+             dir.setPoints(temp);
+
+        }
     }
     public void updateCircle( LatLng center,float distance ){
         if(lastCircle != null){
@@ -165,7 +257,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void updateMapDisplay(Location myLocation) {
         // Add a marker in Sydney and move the camera
         LatLng curPos = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
-
+        myWay = new ArrayList<>();
+        myWay.add(curPos);
         if(lastLatLng!= null){
             Log.e("sd","km: "+getDistanceFromLatLonInKm(lastLatLng,curPos));
         }
@@ -173,9 +266,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         updateCircle(curPos,0);
         lastLatLng = curPos;
 
-       // stepCounter.resetCounter();
-        mMap.addMarker(new MarkerOptions().position(curPos).title("Position courante"));
+        stepCounter.resetCounter();
+
+        if(currMarquer!=null) currMarquer.remove();
+        currMarquer = mMap.addMarker(new MarkerOptions().position(curPos).title("Position courante"));
+
+        if(currLine!=null) currLine.remove();
+        currLine = mMap.addPolyline(new PolylineOptions());
+        currLine.setPoints(myWay);
+
+
         float zoom = mMap.getMaxZoomLevel();
+
         Log.d("INFO", "Zoom Max = " + zoom);
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(curPos, zoom - 3.0f));
     }
